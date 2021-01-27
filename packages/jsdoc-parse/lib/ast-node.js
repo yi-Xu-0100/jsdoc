@@ -1,9 +1,9 @@
 // TODO: docs
-/** @module jsdoc/src/astnode */
+/** @module @jsdoc/parse.astNode */
+const _ = require('lodash');
 const { cast } = require('@jsdoc/util');
-const env = require('jsdoc/env');
 const { SCOPE } = require('@jsdoc/core').name;
-const { Syntax } = require('jsdoc/src/syntax');
+const { Syntax } = require('./syntax');
 
 // Counter for generating unique node IDs.
 let uid = 100000000;
@@ -11,7 +11,7 @@ let uid = 100000000;
 /**
  * Check whether an AST node represents a function.
  *
- * @alias module:jsdoc/src/astnode.isFunction
+ * @alias module:@jsdoc/parse.astNode.isFunction
  * @param {(Object|string)} node - The AST node to check, or the `type` property of a node.
  * @return {boolean} Set to `true` if the node is a function or `false` in all other cases.
  */
@@ -36,7 +36,7 @@ const isFunction = exports.isFunction = node => {
 /**
  * Check whether an AST node creates a new scope.
  *
- * @alias module:jsdoc/src/astnode.isScope
+ * @alias module:@jsdoc/parse.astNode.isScope
  * @param {Object} node - The AST node to check.
  * @return {Boolean} Set to `true` if the node creates a new scope, or `false` in all other cases.
  */
@@ -46,7 +46,6 @@ exports.isScope = node => // TODO: handle blocks with "let" declarations
 
 // TODO: docs
 exports.addNodeProperties = node => {
-    const debugEnabled = Boolean(env.opts.debug);
     const newProperties = {};
 
     if (!node || typeof node !== 'object') {
@@ -56,11 +55,11 @@ exports.addNodeProperties = node => {
     if (!node.nodeId) {
         newProperties.nodeId = {
             value: `astnode${uid++}`,
-            enumerable: debugEnabled
+            enumerable: true
         };
     }
 
-    if (!node.parent && node.parent !== null) {
+    if (_.isUndefined(node.parent)) {
         newProperties.parent = {
             // `null` means 'no parent', so use `undefined` for now
             value: undefined,
@@ -68,7 +67,7 @@ exports.addNodeProperties = node => {
         };
     }
 
-    if (!node.enclosingScope && node.enclosingScope !== null) {
+    if (_.isUndefined(node.enclosingScope)) {
         newProperties.enclosingScope = {
             // `null` means 'no enclosing scope', so use `undefined` for now
             value: undefined,
@@ -76,7 +75,7 @@ exports.addNodeProperties = node => {
         };
     }
 
-    if (debugEnabled && typeof node.parentId === 'undefined') {
+    if (_.isUndefined(node.parentId)) {
         newProperties.parentId = {
             enumerable: true,
             get() {
@@ -85,7 +84,7 @@ exports.addNodeProperties = node => {
         };
     }
 
-    if (debugEnabled && typeof node.enclosingScopeId === 'undefined') {
+    if (_.isUndefined(node.enclosingScopeId)) {
         newProperties.enclosingScopeId = {
             enumerable: true,
             get() {

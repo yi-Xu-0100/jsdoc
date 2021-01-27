@@ -2,10 +2,10 @@
  * @module jsdoc/src/visitor
  */
 // TODO: consider exporting more stuff so users can override it
-const astNode = require('jsdoc/src/astnode');
+const { astNode } = require('@jsdoc/parse');
 const combineDoclets = require('jsdoc/doclet').combine;
 const { getBasename, LONGNAMES } = require('@jsdoc/core').name;
-const { Syntax } = require('jsdoc/src/syntax');
+const { Syntax } = require('@jsdoc/parse');
 
 /**
  * Get the raw comment string for a block comment node.
@@ -319,11 +319,9 @@ function makeConstructorFinisher(parser) {
             return;
         }
 
+        // We prefer the parent doclet because it has the correct kind, longname, and memberof.
+        // The child doclet might or might not have the correct kind, longname, and memberof.
         combined = combineDoclets(parentDoclet, eventDoclet);
-        combined.longname = parentDoclet.longname;
-        if (parentDoclet.memberof) {
-            combined.memberof = parentDoclet.memberof;
-        }
 
         parser.addResult(combined);
 

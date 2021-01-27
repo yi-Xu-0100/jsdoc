@@ -2,13 +2,13 @@
  * @module jsdoc/src/parser
  */
 const _ = require('lodash');
-const astNode = require('jsdoc/src/astnode');
-const { conf } = require('jsdoc/env');
+const { AstBuilder, astNode, Syntax } = require('@jsdoc/parse');
 const { EventEmitter } = require('events');
 const fs = require('fs');
 const { log } = require('@jsdoc/util');
 const { getBasename, LONGNAMES, SCOPE, toParts } = require('@jsdoc/core').name;
-const { Syntax } = require('jsdoc/src/syntax');
+const { Visitor } = require('jsdoc/src/visitor');
+const { Walker } = require('jsdoc/src/walker');
 
 const hasOwnProp = Object.prototype.hasOwnProperty;
 
@@ -45,7 +45,7 @@ class DocletCache {
 }
 
 // TODO: docs
-exports.createParser = type => {
+exports.createParser = (type, conf) => {
     let modulePath;
 
     if (!type) {
@@ -62,7 +62,7 @@ exports.createParser = type => {
         return null;
     }
 
-    return new (require(modulePath).Parser)();
+    return new (require(modulePath).Parser)(conf);
 };
 
 // TODO: docs
@@ -90,23 +90,18 @@ function definedInScope(doclet, basename) {
  */
 class Parser extends EventEmitter {
     // TODO: docs
-    constructor(builderInstance, visitorInstance, walkerInstance) {
+    constructor(conf) {
         super();
 
         this.clear();
 
-        this._astBuilder = builderInstance || new (require('jsdoc/src/astbuilder').AstBuilder)();
-        this._visitor = visitorInstance || new (require('jsdoc/src/visitor').Visitor)();
-        this._walker = walkerInstance || new (require('jsdoc/src/walker').Walker)();
+        this._conf = conf || {};
+        this._visitor = new Visitor();
+        this._walker = new Walker();
 
         this._visitor.setParser(this);
 
         Object.defineProperties(this, {
-            astBuilder: {
-                get() {
-                    return this._astBuilder;
-                }
-            },
             visitor: {
                 get() {
                     return this._visitor;
@@ -155,7 +150,7 @@ class Parser extends EventEmitter {
      * var docs = jsdocParser.parse(myFiles);
      */
     parse(sourceFiles, encoding) {
-        encoding = encoding || conf.encoding || 'utf8';
+        encoding = encoding || this._conf.encoding || 'utf8';
 
         let filename = '';
         let sourceCode = '';
@@ -268,6 +263,7 @@ class Parser extends EventEmitter {
         let e = {
             filename: sourceName
         };
+        let sourceType;
 
         this.emit('fileBegin', e);
         log.info(`Parsing ${sourceName} ...`);
@@ -282,8 +278,9 @@ class Parser extends EventEmitter {
             sourceName = e.filename;
 
             sourceCode = pretreat(e.source);
+            sourceType = this._conf.source ? this._conf.source.type : undefined;
 
-            ast = this._astBuilder.build(sourceCode, sourceName);
+            ast = AstBuilder.build(sourceCode, sourceName, sourceType);
             if (ast) {
                 this._walkAst(ast, this._visitor, sourceName);
             }
@@ -531,7 +528,8 @@ class Parser extends EventEmitter {
                 result = doclet.longname;
             }
             // walk up to the closest class we can find
-            else if (doclet.kind === 'class' || doclet.kind === 'module') {
+            else if (doclet.kind === 'class' || doclet.kind === 'interface' ||
+                doclet.kind === 'module') {
                 result = doclet.longname;
             }
             else if (node.enclosingScope) {
